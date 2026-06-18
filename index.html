@@ -179,8 +179,12 @@
       color: #3fb950; border-color: #3fb950;
       font-size: 0.78em; padding: 5px 12px; background: transparent;
     }
-    .btn-save   { color: #58a6ff; border-color: #58a6ff; padding: 6px 18px; font-size: 0.82em; background: transparent; }
-    .btn-cancel { color: #8b949e; border-color: #30363d;  padding: 6px 14px; font-size: 0.82em; background: transparent; }
+    .btn-save     { color: #58a6ff; border-color: #58a6ff; padding: 6px 18px; font-size: 0.82em; background: transparent; }
+    .btn-cancel   { color: #8b949e; border-color: #30363d;  padding: 6px 14px; font-size: 0.82em; background: transparent; }
+    .btn-export   { color: #8b949e; border-color: #30363d;  padding: 5px 11px; font-size: 0.78em; background: transparent; }
+    .btn-export:hover { color: #c9d1d9; border-color: #8b949e; opacity: 1; }
+    .btn-import   { color: #8b949e; border-color: #30363d;  padding: 5px 11px; font-size: 0.78em; background: transparent; cursor: pointer; }
+    .btn-import:hover { color: #c9d1d9; border-color: #8b949e; opacity: 1; }
     .cfg-msg { font-size: 0.78em; color: #8b949e; }
 
     /* ── Toast ── */
@@ -237,7 +241,11 @@
     <div class="modal">
       <div class="modal-head">
         <h2>PROGRAM CONFIGURATION</h2>
-        <button class="btn-cancel" onclick="closeConfig()">&#10005;</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-export" onclick="exportConfig()">&#8595; Export</button>
+          <label class="btn-import">&#8593; Import<input type="file" id="import-file" accept=".json" style="display:none" onchange="importConfig(event)"></label>
+          <button class="btn-cancel" onclick="closeConfig()">&#10005;</button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="cfg-header">
@@ -397,6 +405,44 @@
       } else {
         document.getElementById('cfg-msg').textContent = d.message;
       }
+    }
+
+    function collectRows() {
+      const rows = document.querySelectorAll('.cfg-row');
+      return Array.from(rows).map(row => {
+        const [idEl, nameEl, typeEl, cmdEl] = row.querySelectorAll('input, select');
+        return { id: parseInt(idEl.value) || 0, name: nameEl.value.trim(), type: typeEl.value, cmd: cmdEl.value.trim() };
+      });
+    }
+
+    function exportConfig() {
+      const configs = collectRows();
+      const blob = new Blob([JSON.stringify(configs, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'programs.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importConfig(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const configs = JSON.parse(e.target.result);
+          if (!Array.isArray(configs)) throw new Error('配列形式のJSONが必要です');
+          const container = document.getElementById('cfg-rows');
+          container.innerHTML = '';
+          configs.forEach(c => appendRow(container, c));
+          document.getElementById('cfg-msg').textContent = `${configs.length}件のプログラムを読み込みました`;
+        } catch (err) {
+          document.getElementById('cfg-msg').textContent = 'Import失敗: ' + err.message;
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
     }
 
     function escHtml(s) {
