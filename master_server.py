@@ -84,6 +84,28 @@ class ProcessManager:
                 for prog in sorted(self.programs.values(), key=lambda p: p['id'])
             ]
 
+    def get_config(self):
+        with self._lock:
+            return [
+                {'id': p['id'], 'name': p['name'], 'type': p['type'], 'cmd': p['cmd']}
+                for p in sorted(self.programs.values(), key=lambda p: p['id'])
+            ]
+
+    def save_config(self, new_configs):
+        with self._lock:
+            new_ids = {c['id'] for c in new_configs}
+            for pid, prog in list(self.programs.items()):
+                changed = any(c['id'] == pid and c['cmd'] != prog['cmd'] for c in new_configs)
+                if (pid not in new_ids or changed) and self._running(prog):
+                    prog['process'].terminate()
+                    try:
+                        prog['process'].wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        prog['process'].kill()
+            with open(PROGRAMS_FILE, 'w') as f:
+                json.dump(new_configs, f, ensure_ascii=False, indent=2)
+            self.programs = {c['id']: dict(c, process=None) for c in new_configs}
+
     @staticmethod
     def _running(prog):
         return prog['process'] is not None and prog['process'].poll() is None
@@ -129,6 +151,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 'timestamp':   datetime.now().isoformat(timespec='seconds'),
                 'programs':    self.pm.get_status(),
             })
+        elif path == '/programs/config':
+            self._json(self.pm.get_config())
         else:
             self._not_found()
 
@@ -154,6 +178,20 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json({'ok': True, 'message': 'Shutting down...'})
             threading.Timer(1.0, lambda: os.system('sudo shutdown -h now')).start()
 
+        else:
+            self._not_found()
+
+    # ── PUT ──────────────────────────────────────────────
+    def do_PUT(self):
+        if self.path.strip('/') == 'programs/config':
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length)
+            try:
+                configs = json.loads(body)
+                self.pm.save_config(configs)
+                self._json({'ok': True, 'message': 'Config saved'})
+            except Exception as e:
+                self._json({'ok': False, 'message': str(e)})
         else:
             self._not_found()
 
