@@ -1,0 +1,12 @@
+[
+  {"id": 1,  "name": "talker",       "type": "ros2", "cmd": "ros2 run demo_nodes_cpp talker"},
+  {"id": 2,  "name": "listener",     "type": "ros2", "cmd": "ros2 run demo_nodes_cpp listener"},
+  {"id": 3,  "name": "teleop",       "type": "ros2", "cmd": "ros2 run teleop_twist_keyboard teleop_twist_keyboard"},
+  {"id": 4,  "name": "joint_state",  "type": "ros2", "cmd": "ros2 run joint_state_publisher joint_state_publisher"},
+  {"id": 5,  "name": "camera",       "type": "ros2", "cmd": "ros2 run usb_cam usb_cam_node_exe"},
+  {"id": 6,  "name": "logger",       "type": "bash", "cmd": "bash /home/kk/scripts/logger.sh"},
+  {"id": 7,  "name": "sensor_poll",  "type": "bash", "cmd": "bash /home/kk/scripts/sensor_poll.sh"},
+  {"id": 8,  "name": "gpio_monitor", "type": "bash", "cmd": "bash /home/kk/scripts/gpio_monitor.sh"},
+  {"id": 9,  "name": "heartbeat",    "type": "bash", "cmd": "bash /home/kk/scripts/heartbeat.sh"},
+  {"id": 10, "name": "nav2_bringup", "type": "ros2", "cmd": "ros2 launch nav2_bringup navigation_launch.py"}
+]

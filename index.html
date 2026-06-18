@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Master Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 { color: #58a6ff; font-size: 1.3em; margin-bottom: 16px; letter-spacing: 0.05em; }
+
+    /* ── CPU bar ── */
+    .cpu-panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .cpu-label { color: #8b949e; font-size: 0.8em; white-space: nowrap; }
+    .cpu-value { color: #58a6ff; font-size: 1.6em; font-weight: bold; min-width: 72px; }
+    .bar-wrap  { flex: 1; height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; width: 0%; border-radius: 4px; transition: width 0.6s, background 0.4s; background: #3fb950; }
+    .bar-fill.warn   { background: #d29922; }
+    .bar-fill.danger { background: #f85149; }
+    .timestamp { color: #484f58; font-size: 0.72em; white-space: nowrap; }
+
+    /* ── Program grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-left: 3px solid #6e7681;
+      border-radius: 6px;
+      padding: 11px 13px;
+      transition: border-left-color 0.3s;
+    }
+    .card.running { border-left-color: #3fb950; }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .card-id   { color: #484f58; font-size: 0.75em; min-width: 18px; }
+    .card-name { font-size: 0.95em; font-weight: bold; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge {
+      font-size: 0.65em;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #21262d;
+      color: #8b949e;
+    }
+    .badge.ros2 { color: #79c0ff; }
+
+    .card-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 9px;
+      font-size: 0.78em;
+      color: #8b949e;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #6e7681; flex-shrink: 0; }
+    .dot.running { background: #3fb950; }
+    .pid { margin-left: auto; font-size: 0.9em; color: #484f58; }
+
+    .card-actions { display: flex; gap: 6px; }
+
+    /* ── Buttons ── */
+    button {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid;
+      cursor: pointer;
+      font-size: 0.75em;
+      font-family: inherit;
+      transition: opacity 0.15s;
+      background: transparent;
+    }
+    button:hover:not(:disabled) { opacity: 0.75; }
+    button:disabled { opacity: 0.3; cursor: default; }
+
+    .btn-start   { color: #3fb950; border-color: #3fb950; }
+    .btn-stop    { color: #f85149; border-color: #f85149; }
+    .btn-restart { color: #58a6ff; border-color: #58a6ff; }
+
+    /* ── System section ── */
+    .sys-panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 14px 16px;
+    }
+    .sys-title {
+      color: #484f58;
+      font-size: 0.75em;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .sys-actions { display: flex; gap: 10px; }
+    .btn-reboot   { color: #d29922; border-color: #d29922; padding: 6px 14px; font-size: 0.82em; }
+    .btn-shutdown { color: #f85149; border-color: #f85149; padding: 6px 14px; font-size: 0.82em; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      padding: 8px 14px;
+      font-size: 0.82em;
+      color: #c9d1d9;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      max-width: 280px;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <h1>&#9881; Robot Master Server</h1>
+
+  <div class="cpu-panel">
+    <div>
+      <div class="cpu-label">CPU USAGE</div>
+      <div class="cpu-value" id="cpu-val">--</div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-fill" id="bar-fill"></div>
+    </div>
+    <div class="timestamp" id="ts">--</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="sys-panel">
+    <div class="sys-title">SYSTEM CONTROL</div>
+    <div class="sys-actions">
+      <button class="btn-reboot"   onclick="sysAction('reboot')">&#8635; Reboot</button>
+      <button class="btn-shutdown" onclick="sysAction('shutdown')">&#9211; Shutdown</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let toastTimer;
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    async function fetchStatus() {
+      try {
+        const r = await fetch('/status');
+        if (!r.ok) return;
+        render(await r.json());
+      } catch (_) {}
+    }
+
+    function render(data) {
+      // CPU
+      const pct = data.cpu_percent ?? 0;
+      document.getElementById('cpu-val').textContent = pct.toFixed(1) + '%';
+      const fill = document.getElementById('bar-fill');
+      fill.style.width = Math.min(pct, 100) + '%';
+      fill.className = 'bar-fill' + (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
+      document.getElementById('ts').textContent = (data.timestamp || '').replace('T', ' ');
+
+      // Programs
+      document.getElementById('grid').innerHTML = data.programs.map(p => `
+        <div class="card ${p.status}" id="card-${p.id}">
+          <div class="card-head">
+            <span class="card-id">#${p.id}</span>
+            <span class="card-name">${p.name}</span>
+            <span class="badge ${p.type}">${p.type}</span>
+          </div>
+          <div class="card-status">
+            <span class="dot ${p.status}"></span>
+            <span>${p.status}</span>
+            ${p.pid ? `<span class="pid">PID&nbsp;${p.pid}</span>` : ''}
+          </div>
+          <div class="card-actions">
+            <button class="btn-start"   onclick="act('start',${p.id})"   ${p.status==='running'?'disabled':''}>&#9654; Start</button>
+            <button class="btn-stop"    onclick="act('stop',${p.id})"    ${p.status==='stopped'?'disabled':''}>&#9632; Stop</button>
+            <button class="btn-restart" onclick="act('restart',${p.id})">&#8635; Restart</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function act(type, id) {
+      const r = await fetch(`/${type}/${id}`, { method: 'POST' });
+      const d = await r.json();
+      toast(d.message);
+      fetchStatus();
+    }
+
+    async function sysAction(type) {
+      const label = type === 'reboot' ? '再起動' : 'シャットダウン';
+      if (!confirm(`本当に${label}しますか？`)) return;
+      const r = await fetch(`/system/${type}`, { method: 'POST' });
+      const d = await r.json();
+      toast(d.message);
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>
