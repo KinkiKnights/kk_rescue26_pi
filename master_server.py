@@ -33,7 +33,8 @@ class ProcessManager:
             try:
                 kwargs = dict(stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if prog['type'] == 'ros2':
-                    proc = subprocess.Popen(prog['cmd'].split(), **kwargs)
+                    cmd = f'source /opt/ros/jazzy/setup.bash && {prog["cmd"]}'
+                    proc = subprocess.Popen(cmd, shell=True, executable='/bin/bash', **kwargs)
                 else:
                     proc = subprocess.Popen(prog['cmd'], shell=True, **kwargs)
                 prog['process'] = proc
