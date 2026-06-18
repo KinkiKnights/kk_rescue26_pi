@@ -34,7 +34,9 @@
     .bar-fill  { height: 100%; width: 0%; border-radius: 4px; transition: width 0.6s, background 0.4s; background: #3fb950; }
     .bar-fill.warn   { background: #d29922; }
     .bar-fill.danger { background: #f85149; }
-    .timestamp { color: #484f58; font-size: 0.72em; white-space: nowrap; }
+    .timestamp  { color: #484f58; font-size: 0.72em; white-space: nowrap; }
+    .last-conn  { color: #484f58; font-size: 0.72em; white-space: nowrap; text-align: right; margin-top: 3px; }
+    .last-conn.stale { color: #d29922; }
 
     /* ── Program grid ── */
     .grid {
@@ -150,7 +152,10 @@
     <div class="bar-wrap">
       <div class="bar-fill" id="bar-fill"></div>
     </div>
-    <div class="timestamp" id="ts">--</div>
+    <div>
+      <div class="timestamp" id="ts">--</div>
+      <div class="last-conn" id="last-conn">接続中...</div>
+    </div>
   </div>
 
   <div class="grid" id="grid"></div>
@@ -167,6 +172,15 @@
 
   <script>
     let toastTimer;
+    let lastConnectedAt = null;
+
+    setInterval(() => {
+      const el = document.getElementById('last-conn');
+      if (!lastConnectedAt) return;
+      const sec = Math.floor((Date.now() - lastConnectedAt) / 1000);
+      el.textContent = `最終接続: ${sec}秒前`;
+      el.className = 'last-conn' + (sec >= 10 ? ' stale' : '');
+    }, 1000);
 
     function toast(msg) {
       const el = document.getElementById('toast');
@@ -180,6 +194,7 @@
       try {
         const r = await fetch('/status');
         if (!r.ok) return;
+        lastConnectedAt = Date.now();
         render(await r.json());
       } catch (_) {}
     }
