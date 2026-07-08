@@ -18,7 +18,7 @@
 #    - master_control/     : Web UI つきプログラム起動管理サーバ (port 80)
 #    - camera_publisher/   : USB カメラ → WebRTC 配信 (relay へ)
 #    - mic_publisher/      : USB マイク → FLAC ロスレス TCP 配信
-#    - ros2/joy_node_web/  : Web ゲームパッド → sensor_msgs/Joy (colcon 対象)
+#    - ros2/joy_node_web/  : Web ゲームパッド → sensor_msgs/Joy (submodule, colcon 対象)
 #  外部 OSS は setup/kk_rescue26_pi.repos で参照(vcs import):
 #    - ros2_socketcan      : CAN 通信 (上流 OSS)
 #
@@ -131,7 +131,8 @@ sudo apt-get install -y gstreamer1.0-libcamera libcamera-tools gstreamer1.0-plug
 
 # =============================================================================
 # 5. ROS2 ワークスペース kk_ws の作成とリポジトリのクローン
-#    Pi 側プログラム(joy_node_web 含む)は kk_rescue26_pi に集約済み。
+#    Pi 側プログラムは kk_rescue26_pi に集約。joy_node_web は submodule
+#    (ros2/joy_node_web) として固定コミットで含む → submodule init が必要。
 #    外部 OSS (ros2_socketcan) のみ setup/kk_rescue26_pi.repos に定義し
 #    vcstool で取得します。
 # =============================================================================
@@ -139,7 +140,10 @@ log "5. ワークスペース ${WS} を作成しリポジトリをクローン"
 mkdir -p "${WS}/src"
 cd "${WS}/src"
 
-[ -d "${REPO_DIR}" ] || git clone "${REPO_URL}" "${REPO_DIR}"
+# --recursive で submodule (joy_node_web) も同時に取得。既存 clone の場合に
+# 備え submodule update も明示実行(未取得なら空ディレクトリ→ビルド失敗を防ぐ)。
+[ -d "${REPO_DIR}" ] || git clone --recursive "${REPO_URL}" "${REPO_DIR}"
+git -C "${REPO_DIR}" submodule update --init --recursive
 vcs import "${WS}/src" < "${REPO_DIR}/setup/kk_rescue26_pi.repos"
 chmod +x "${REPO_DIR}/camera_publisher/"*.sh "${REPO_DIR}/mic_publisher/"*.sh
 
