@@ -28,12 +28,14 @@
 #    (ClaudeShareContents/webrtc-camera の relay/web を参照)。relay は
 #    RELAY_HOST:8080。publisher は relay が落ちても自動再接続します。
 #
-#  使い方(ワンライナー。clone/submodule/依存/ビルド/自動起動まで自己完結):
-#    curl -fsSL https://raw.githubusercontent.com/KinkiKnights/kk_rescue26_pi/main/setup/kk_robot_setup.sh | bash
-#    # 中継IP変更: ... | RELAY_HOST=192.168.137.1 bash
-#  手動 clone の場合:
-#    git clone --recursive https://github.com/KinkiKnights/kk_rescue26_pi.git
+#  使い方: README.md の「クイックスタート」のワンライナーを推奨。
+#    (SSH キー生成→登録待ち→SSH clone→本スクリプト、の自己完結ブートストラップ。
+#     非公開リポジトリでも動作する)
+#  手動 clone の場合(SSH キー登録後):
+#    git clone --recursive git@github.com:KinkiKnights/kk_rescue26_pi.git
 #    ./kk_rescue26_pi/setup/kk_robot_setup.sh
+#  リポジトリが公開の間は raw URL 経由も可:
+#    curl -fsSL https://raw.githubusercontent.com/KinkiKnights/kk_rescue26_pi/main/setup/kk_robot_setup.sh | bash
 #
 #  ※ 別のラズパイでもそのまま実行できます。PI_ID はホスト名から自動生成します
 #    (例: hostname=kk06 → PI_ID=KK06)。
@@ -43,7 +45,8 @@ set -euo pipefail
 # ---- 設定(必要に応じて変更)------------------------------------------------
 ROS_DISTRO="jazzy"
 WS="$HOME/kk_ws"                                   # ワークスペース
-REPO_URL="https://github.com/KinkiKnights/kk_rescue26_pi.git"
+REPO_SSH="git@github.com:KinkiKnights/kk_rescue26_pi.git"      # 優先 (手順0のキーで認証)
+REPO_URL="https://github.com/KinkiKnights/kk_rescue26_pi.git"  # 公開リポジトリ時のフォールバック
 REPO_DIR="${WS}/src/kk_rescue26_pi"
 PI_MODEL="pi5"                                     # publish-${PI_MODEL}.sh を使用 (pi4=HW / pi5=SW)
 RELAY_HOST="${RELAY_HOST:-192.168.137.1}"          # webrtc 中継(SFU)サーバのIP
@@ -212,7 +215,10 @@ cd "${WS}/src"
 
 # --recursive で submodule (joy_node_web) も同時に取得。既存 clone の場合に
 # 備え submodule update も明示実行(未取得なら空ディレクトリ→ビルド失敗を防ぐ)。
-[ -d "${REPO_DIR}" ] || git clone --recursive "${REPO_URL}" "${REPO_DIR}"
+# clone は SSH (手順0で登録したキー) を優先し、失敗時のみ HTTPS (公開時のみ有効)。
+[ -d "${REPO_DIR}" ] \
+  || GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git clone --recursive "${REPO_SSH}" "${REPO_DIR}" \
+  || git clone --recursive "${REPO_URL}" "${REPO_DIR}"
 git -C "${REPO_DIR}" submodule update --init --recursive
 vcs import "${WS}/src" < "${REPO_DIR}/setup/kk_rescue26_pi.repos"
 chmod +x "${REPO_DIR}/camera_publisher/"*.sh "${REPO_DIR}/mic_publisher/"*.sh
