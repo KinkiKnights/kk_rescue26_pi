@@ -78,8 +78,14 @@ if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
   log "   -> 新しいキーを生成しました"
 fi
 gh_auth_ok() {
-  ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
-      git@github.com 2>&1 | grep -q "successfully authenticated"
+  # `ssh -T git@github.com` はシェルを持たないため、認証成功時でも exit 1 を返す。
+  # set -o pipefail 下では `ssh ... | grep` が grep の成否に関わらず ssh の 1 を
+  # 拾ってしまい、認証が通っていても常に失敗と判定される。出力をコマンド置換で
+  # 受けてから grep することで、判定を grep の結果だけに依存させる。
+  local out
+  out="$(ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
+      git@github.com 2>&1 || true)"
+  printf '%s' "$out" | grep -q "successfully authenticated"
 }
 if gh_auth_ok; then
   log "   -> GitHub に認証済み(登録作業は不要)"
