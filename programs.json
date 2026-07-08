@@ -1,12 +1,20 @@
 [
-  {"id": 1,  "name": "talker",       "type": "ros2", "cmd": "ros2 run demo_nodes_cpp talker"},
-  {"id": 2,  "name": "listener",     "type": "ros2", "cmd": "ros2 run demo_nodes_cpp listener"},
-  {"id": 3,  "name": "teleop",       "type": "ros2", "cmd": "ros2 run teleop_twist_keyboard teleop_twist_keyboard"},
-  {"id": 4,  "name": "joint_state",  "type": "ros2", "cmd": "ros2 run joint_state_publisher joint_state_publisher"},
-  {"id": 5,  "name": "camera",       "type": "ros2", "cmd": "ros2 run usb_cam usb_cam_node_exe"},
-  {"id": 6,  "name": "logger",       "type": "bash", "cmd": "bash /home/kk/scripts/logger.sh"},
-  {"id": 7,  "name": "sensor_poll",  "type": "bash", "cmd": "bash /home/kk/scripts/sensor_poll.sh"},
-  {"id": 8,  "name": "gpio_monitor", "type": "bash", "cmd": "bash /home/kk/scripts/gpio_monitor.sh"},
-  {"id": 9,  "name": "heartbeat",    "type": "bash", "cmd": "bash /home/kk/scripts/heartbeat.sh"},
-  {"id": 10, "name": "nav2_bringup", "type": "ros2", "cmd": "ros2 launch nav2_bringup navigation_launch.py"}
+  {
+    "id": 1,
+    "name": "camera",
+    "type": "bash",
+    "cmd": "PI_ID=KK05 SERVER=ws://192.168.137.1:8080/ws CAM1=\"v4l2src device=/dev/video0 ! image/jpeg,width=1024,height=768,framerate=30/1 ! jpegdec\" /home/kk/kk_ws/src/webrtc-camera/publisher/publish-pi5.sh"
+  },
+  {
+    "id": 2,
+    "name": "joy_node_web",
+    "type": "ros2",
+    "cmd": "source /home/kk/kk_ws/install/setup.bash && ros2 run joy_node_web joy_node"
+  },
+  {
+    "id": 3,
+    "name": "mic",
+    "type": "bash",
+    "cmd": "ALSA_DEV=hw:1,0 RATE=48000 PORT=5005 /home/kk/kk_ws/src/mic_stream/publisher/mic-publish.sh"
+  }
 ]
