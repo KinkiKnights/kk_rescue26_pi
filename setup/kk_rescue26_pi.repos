@@ -1,0 +1,18 @@
+# 外部依存リポジトリ定義 (vcstool 形式)
+# 取得: vcs import ~/kk_ws/src < setup/kk_rescue26_pi.repos
+# 更新: vcs pull ~/kk_ws/src
+#
+# 上流 OSS / 単体で他プロジェクトでも使うリポジトリはここに置き、
+# 本リポジトリには取り込まない(ベンダリングしない=乖離防止)。
+# バージョンを固定したい場合は version: にタグ/コミットを指定してください。
+repositories:
+  # 汎用 ROS2 パッケージ。他ロボットでも使うため単体リポジトリのまま参照する。
+  joy_node_web:
+    type: git
+    url: https://github.com/KinkiKnights/joy_node_web.git
+    version: main
+  # CAN 通信 (上流 OSS)。
+  ros2_socketcan:
+    type: git
+    url: https://github.com/autowarefoundation/ros2_socketcan.git
+    version: main

@@ -7,27 +7,29 @@
 #    1. パスワード無し sudo の設定
 #    2. 2GB スワップ領域の作成
 #    3. ubuntu-desktop / ros-jazzy-desktop と関連ツールの導入
-#    4. kk_rescue_pi 各コンポーネントの依存パッケージ導入
+#    4. kk_rescue26_pi 各コンポーネントの依存パッケージ導入
 #    5. ROS2 ワークスペース kk_ws の作成とリポジトリのクローン
-#       (kk_rescue_pi / ros2_socketcan)
+#       (kk_rescue26_pi + .repos の外部依存: joy_node_web / ros2_socketcan)
 #    6. colcon ビルド
 #    7. master control の自動起動(systemd)設定
 #    8. ~/.bashrc への ROS2 source 追記
 #
-#  Pi 上で動くプログラムはすべて kk_rescue_pi リポジトリに集約されています:
+#  Pi 固有のプログラムは kk_rescue26_pi リポジトリに集約されています:
 #    - master_control/     : Web UI つきプログラム起動管理サーバ (port 80)
 #    - camera_publisher/   : USB カメラ → WebRTC 配信 (relay へ)
 #    - mic_publisher/      : USB マイク → FLAC ロスレス TCP 配信
-#    - ros2/joy_node_web/  : Web ゲームパッド → sensor_msgs/Joy (colcon 対象)
+#  汎用/外部の ROS2 パッケージは setup/kk_rescue26_pi.repos で参照(vcs import):
+#    - joy_node_web        : Web ゲームパッド → sensor_msgs/Joy (他ロボットでも使う単体repo)
+#    - ros2_socketcan      : CAN 通信 (上流 OSS)
 #
 #  ※ webrtc の中継(SFU=relay)サーバとビューアは「別マシン」で動かします
 #    (ClaudeShareContents/webrtc-camera の relay/web を参照)。relay は
 #    RELAY_HOST:8080。publisher は relay が落ちても自動再接続します。
 #
 #  使い方:
-#    git clone https://github.com/KinkiKnights/kk_rescue_pi.git
-#    ./kk_rescue_pi/setup/kk_robot_setup.sh
-#    RELAY_HOST=192.168.137.1 ./kk_rescue_pi/setup/kk_robot_setup.sh  # 中継IP変更時
+#    git clone https://github.com/KinkiKnights/kk_rescue26_pi.git
+#    ./kk_rescue26_pi/setup/kk_robot_setup.sh
+#    RELAY_HOST=192.168.137.1 ./kk_rescue26_pi/setup/kk_robot_setup.sh  # 中継IP変更時
 #
 #  ※ 別のラズパイでもそのまま実行できます。PI_ID はホスト名から自動生成します
 #    (例: hostname=kk06 → PI_ID=KK06)。
@@ -37,8 +39,8 @@ set -euo pipefail
 # ---- 設定(必要に応じて変更)------------------------------------------------
 ROS_DISTRO="jazzy"
 WS="$HOME/kk_ws"                                   # ワークスペース
-REPO_URL="https://github.com/KinkiKnights/kk_rescue_pi.git"
-REPO_DIR="${WS}/src/kk_rescue_pi"
+REPO_URL="https://github.com/KinkiKnights/kk_rescue26_pi.git"
+REPO_DIR="${WS}/src/kk_rescue26_pi"
 PI_MODEL="pi5"                                     # publish-${PI_MODEL}.sh を使用 (pi4=HW / pi5=SW)
 RELAY_HOST="${RELAY_HOST:-192.168.137.1}"          # webrtc 中継(SFU)サーバのIP
 RELAY_URL="ws://${RELAY_HOST}:8080/ws"
@@ -129,21 +131,22 @@ sudo apt-get install -y gstreamer1.0-libcamera libcamera-tools gstreamer1.0-plug
 
 # =============================================================================
 # 5. ROS2 ワークスペース kk_ws の作成とリポジトリのクローン
-#    Pi 側プログラムは kk_rescue_pi に集約済み。外部依存 (ros2_socketcan) は
-#    setup/kk_rescue_pi.repos に定義し vcstool で取得します。
+#    Pi 固有プログラムは kk_rescue26_pi に集約済み。汎用/外部の ROS2 パッケージ
+#    (joy_node_web / ros2_socketcan) は setup/kk_rescue26_pi.repos に定義し
+#    vcstool で個別に取得します(単体リポジトリを二重管理しない)。
 # =============================================================================
 log "5. ワークスペース ${WS} を作成しリポジトリをクローン"
 mkdir -p "${WS}/src"
 cd "${WS}/src"
 
 [ -d "${REPO_DIR}" ] || git clone "${REPO_URL}" "${REPO_DIR}"
-vcs import "${WS}/src" < "${REPO_DIR}/setup/kk_rescue_pi.repos"
+vcs import "${WS}/src" < "${REPO_DIR}/setup/kk_rescue26_pi.repos"
 chmod +x "${REPO_DIR}/camera_publisher/"*.sh "${REPO_DIR}/mic_publisher/"*.sh
 
 # =============================================================================
 # 6. rosdep 初期化 と colcon ビルド
 #    colcon は package.xml を持つパッケージのみビルド:
-#      kk_rescue_pi/ros2/joy_node_web / ros2_socketcan / ros2_socketcan_msgs
+#      joy_node_web / ros2_socketcan / ros2_socketcan_msgs (いずれも .repos 由来)
 #    (master_control / camera_publisher / mic_publisher は ROS パッケージではない)
 #    rosdep が ros2_socketcan の依存 (ros-jazzy-can-msgs 等) を自動導入します。
 # =============================================================================
@@ -171,7 +174,7 @@ JSON
 log "7-2. master-control.service を作成(kk ユーザで port 80 を bind)"
 sudo tee /etc/systemd/system/master-control.service >/dev/null <<UNIT
 [Unit]
-Description=kk_rescue_pi Master Control
+Description=kk_rescue26_pi Master Control
 After=network-online.target
 Wants=network-online.target
 
