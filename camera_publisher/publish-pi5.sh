@@ -13,7 +13,7 @@ export SERVER="${SERVER:-ws://127.0.0.1:8080/ws}"
 export DEFAULT_CAM="${DEFAULT_CAM:-1}"
 
 # --- 入力ソース ---
-export CAM1="${CAM1:-libcamerasrc}"
+export CAM1="${CAM1:-v4l2src device=/dev/video0 ! image/jpeg,framerate=30/1 ! jpegdec}"
 # 画面取得を使う場合のみ有効化 (X11はximagesrc / Waylandはpipewiresrc):
 #   export CAM0="ximagesrc use-damage=false"
 # 例: 2台目カメラ
