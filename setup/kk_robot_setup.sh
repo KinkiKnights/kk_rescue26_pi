@@ -62,6 +62,9 @@ export MIC_PORT="${MIC_PORT:-5005}"             # 配信TCPポート
 export USER_NAME="$(id -un)"
 # USB WiFi ドングルドライバ (RTL8811AU) は既定で無効(詳細は env_setup.sh / docs)。
 export SETUP_WIFI_DONGLE="${SETUP_WIFI_DONGLE:-0}"
+# Git ユーザー識別情報(commit 用。未設定なら以下を --global に設定する)。
+export GIT_USER_NAME="${GIT_USER_NAME:-sanjo}"
+export GIT_USER_EMAIL="${GIT_USER_EMAIL:-sanjo@kinkiknights.com}"
 
 # サブスクリプトの場所(本スクリプトと同じ setup/ ディレクトリ)。
 #   curl | bash のようにパイプで実行された場合は BASH_SOURCE が実ファイルを指さない
@@ -92,6 +95,17 @@ gh_auth_ok() {
   out="$(ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
              git@github.com 2>&1 || true)"
   printf '%s\n' "$out" | grep -q "successfully authenticated"
+}
+
+# Git のユーザー識別情報(commit に必須)を設定する。
+#   既に設定済みなら尊重して上書きしない(GIT_USER_NAME / GIT_USER_EMAIL で変更可)。
+#   git 未導入(基本設定前)の環境では何もしない(env_setup.sh 実行後に再設定される)。
+setup_git_identity() {
+  command -v git >/dev/null 2>&1 || return 0
+  log "Git ユーザー識別情報を確認"
+  git config --global user.name  >/dev/null 2>&1 || git config --global user.name  "${GIT_USER_NAME}"
+  git config --global user.email >/dev/null 2>&1 || git config --global user.email "${GIT_USER_EMAIL}"
+  log "   -> $(git config --global user.name) <$(git config --global user.email)>"
 }
 
 setup_github_key() {
@@ -177,8 +191,9 @@ run_sub() {
 }
 
 # =============================================================================
-#  メイン: SSH キー設定 →(必要なら)ブートストラップ clone → 実行内容の選択
+#  メイン: Git 識別情報 → SSH キー設定 →(必要なら)ブートストラップ clone → 実行内容の選択
 # =============================================================================
+setup_git_identity
 setup_github_key
 
 # raw URL の curl | bash 実行など、サブスクリプトが手元に無い場合は
